@@ -22,8 +22,13 @@ string getFirstToken(const string& s, const char key,string& remainder){
       remainder += x;
     }
   }
-  
 
+  if(firsttoken.size() < 1 && temp.size() > 1){
+    firsttoken = temp;
+  }
+
+  
+  cout << "First token : "<< firsttoken<<endl;
   return firsttoken;
 }
 
@@ -106,6 +111,7 @@ int main() {
   string remainder = "";
 
   string cmd = getFirstToken(command,' ', remainder);
+  cout << "Command first token : "<< cmd << endl;
   // string cmd = tokens[0];
 
   tokens.erase(tokens.begin());
