@@ -5,6 +5,28 @@
 #include <unordered_map>
 using namespace std;
 
+string getFirstToken(const string& s, const char key,string& remainder){
+  if(s.size() < 1) return " ";
+  string temp, firsttoken;
+  bool isfirst = true;
+  for(char x : s){
+    if(isfirst){
+      if(x == key){
+        firsttoken = temp;
+        temp.clear();
+        isfirst = false;
+      }else{
+        temp += x;
+      }
+    }else{
+      remainder += x;
+    }
+  }
+  
+
+  return firsttoken;
+}
+
 vector<string> tokenizeString(const string& s, const char key){
   if(s.size() < 1) return {};
   string temp; 
@@ -24,7 +46,14 @@ vector<string> tokenizeString(const string& s, const char key){
   return tokens;
 }
 
-unordered_map<string, int> commands_and_arguments_map = {{"exit", 1}};
+
+
+enum class CMDS {
+  EXIT = 999,
+  ECHO,
+};
+
+unordered_map<string, int> commands_and_arguments_map = {{"exit", 1}, {"echo", 3}};
 
 
 
@@ -39,10 +68,22 @@ bool isCommand_exists(string token){
 }
 
 
-int doJob(string cmd, vector<string> args){
-    if(cmd == "exit"){
-      return 999;
-    }
+
+int doJob(CMDS cmd,  vector<string> args, int& flag, int& returnvalue,string remainder){
+    if(cmd == CMDS::EXIT){
+      flag = true;
+      returnvalue = stoi(args[0]);
+      return 0;
+    }else if(cmd == CMDS::ECHO){
+      cout << remainder <<endl;
+      // for(string key : args){
+      //   cout << key;
+      // }
+      // cout << endl;
+      return 0;
+    }else{
+      return -1;
+    }  
 
     return 0;
 }
@@ -53,7 +94,8 @@ int main() {
   std::cerr << std::unitbuf;
   
   int exitstatuscode = 0;
-  bool exitcalled = false;
+  int exitcalled = false;
+  int nillflag = 99;
 
   string command;
   while(!exitcalled){
@@ -61,20 +103,21 @@ int main() {
   getline(cin, command);
   
   vector<string> tokens = tokenizeString(command, ' ');
+  string remainder = "";
 
-  string cmd = tokens[0];
+  string cmd = getFirstToken(command,' ', remainder);
+  // string cmd = tokens[0];
 
   tokens.erase(tokens.begin());
 
   bool isOkay = false;
 
   if(isCommand_exists(cmd)){
-    if(tokens.size() == commands_and_arguments_map[cmd]){
-        int ret = doJob(cmd, tokens);
-        if(ret == 999){
-          exitstatuscode = stoi(tokens[0]);
-          exitcalled = 1;
-        }
+
+    if(cmd == "exit"){
+      doJob(CMDS::EXIT,tokens, exitcalled, exitstatuscode,remainder);
+    }else if(cmd == "echo"){
+      doJob(CMDS::ECHO, tokens, nillflag, exitstatuscode,remainder);
     }else{
       cout << cmd <<":"<<" command not found" <<endl;
     }
