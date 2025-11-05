@@ -1,8 +1,4 @@
-#include <iostream>
-#include <stdlib.h>
-#include <string>
-#include <vector>
-#include <unordered_map>
+#include "../lib/commons/commons.hpp"
 using namespace std;
 
 string getFirstToken(const string& s, const char key,string& remainder){
@@ -52,18 +48,12 @@ vector<string> tokenizeString(const string& s, const char key){
 
 
 
-enum class CMDS {
-  EXIT = 999,
-  ECHO,
-};
-
-unordered_map<string, int> commands_and_arguments_map = {{"exit", 1}, {"echo", 3}};
-
+unordered_map<string, shell_commons::COMMANDTYPES> commands_and_types_map = {{"exit", shell_commons::COMMANDTYPES::BUILTIN}, {"echo", shell_commons::COMMANDTYPES::BUILTIN}, {"type", shell_commons::COMMANDTYPES::BUILTIN}};
 
 
 bool isCommand_exists(string token){
 
-  if(commands_and_arguments_map.count(token) > 0){
+  if(commands_and_types_map.count(token) > 0){
     return true;
   }
 
@@ -73,19 +63,34 @@ bool isCommand_exists(string token){
 
 
 
-int doJob(CMDS cmd,  vector<string> args, int& flag, int& returnvalue,string remainder){
-    if(cmd == CMDS::EXIT){
+
+
+
+int doJob(shell_commons::CMDS cmd,  vector<string> args, int& flag, int& returnvalue,string remainder){
+    if(cmd == shell_commons::CMDS::EXIT){
       flag = true;
       returnvalue = stoi(args[0]);
       return 0;
-    }else if(cmd == CMDS::ECHO){
+    }else if(cmd == shell_commons::CMDS::ECHO){
       cout << remainder <<endl;
       // for(string key : args){
       //   cout << key;
       // }
       // cout << endl;
       return 0;
-    }else{
+    }else if(cmd == shell_commons::CMDS::TYPE){
+      string res = shell_commons::trim(remainder);
+      if(commands_and_types_map.count(res)){
+        if(commands_and_types_map[res] == shell_commons::COMMANDTYPES::BUILTIN){
+          cout << res<< " is a shell builtin"<<endl;
+        }else{
+          cout << res << " is not a shell builtin"<<endl;
+        }
+      }else{
+        cout << res <<": not found"<<endl;
+      }
+    }
+    else{
       return -1;
     }  
 
@@ -119,10 +124,13 @@ int main() {
   if(isCommand_exists(cmd)){
 
     if(cmd == "exit"){
-      doJob(CMDS::EXIT,tokens, exitcalled, exitstatuscode,remainder);
+      doJob(shell_commons::CMDS::EXIT,tokens, exitcalled, exitstatuscode,remainder);
     }else if(cmd == "echo"){
-      doJob(CMDS::ECHO, tokens, nillflag, exitstatuscode,remainder);
-    }else{
+      doJob(shell_commons::CMDS::ECHO, tokens, nillflag, exitstatuscode,remainder);
+    }else if (cmd == "type"){
+      doJob(shell_commons::CMDS::TYPE, tokens, nillflag, exitstatuscode,remainder);
+    }
+    else{
       cout << cmd <<":"<<" command not found" <<endl;
     }
   }else{
