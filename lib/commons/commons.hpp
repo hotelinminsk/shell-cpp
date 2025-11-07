@@ -2,6 +2,7 @@
 #define COMMONS_H
 
 
+
 #include <iostream>
 #include <stdlib.h>
 #include <string>
@@ -9,14 +10,14 @@
 #include <algorithm>
 #include <vector>
 #include <unordered_map>
+#include <unistd.h>
 
 namespace shell_commons {
   
-std::string trim(const std::string& s){
-    auto start = std::find_if_not(s.begin(), s.end(), ::isspace);
-    auto end = std::find_if_not(s.rbegin(), s.rend(), ::isspace).base();
-    return (start < end ? std::string(start,end) : std::string());
-}
+std::string trim(const std::string& s);
+
+std::string getSystemName();
+
 
 enum class COMMANDTYPES {
   BUILTIN,
