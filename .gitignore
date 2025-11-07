@@ -353,6 +353,11 @@ tmtags
 !.vscode/extensions.json
 *.code-workspace
 
+
+src/shelltest1/
+src/shelltest1/shelltest
+src/shelltest1/shelltest.cpp
+
 # Local History for Visual Studio Code
 .history/
 
