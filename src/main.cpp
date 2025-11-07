@@ -149,7 +149,14 @@ int main() {
         std::string cmd = tokens.front();
         tokens.erase(tokens.begin());
 
-        std::string remainder = command.substr(cmd.size());
+
+
+        std::string remainder;
+        for(size_t i = 0; i < tokens.size(); i++){
+          remainder += tokens[i];
+          if(i + 1 < tokens.size()) remainder += " ";
+        }
+
         doJob(cmd, tokens, exitcalled, exitstatus, remainder);
     }
 
