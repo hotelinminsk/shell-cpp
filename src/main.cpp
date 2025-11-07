@@ -1,3 +1,5 @@
+#include <unistd.h>
+#include <sys/wait.h>
 #include "../lib/commons/commons.hpp"
 using namespace std;
 static std::vector<std::string> builtins = {"type", "echo", "exit"};
