@@ -64,6 +64,45 @@ bool isCommand_exists(string token){
 
 
 
+string search_path_type(const string& execname, int& returncode){
+  string system =  shell_commons::getSystemName();
+  returncode = 0;
+  string path = getenv("PATH");
+  vector<string> tokenizedPaths;
+  string possible = "";
+  if(system == "Windows"){
+    tokenizedPaths = tokenizeString(path,';');
+    returncode = 0;
+    for(const string& dirpath : tokenizedPaths){
+      possible = dirpath + "/" + execname;
+      if(access(possible.c_str(), X_OK) == 0){
+        returncode = 1;
+        break;
+      }
+    }
+    return possible;
+  }else if(system == "Linux"){
+    tokenizedPaths = tokenizeString(path,':');
+    for(const string& dirpath : tokenizedPaths){
+        possible = dirpath + "/" + execname;
+        if(access(possible.c_str(), X_OK) == 0){
+          //it can be executable
+          returncode = 1;
+          break;
+        }
+    }
+    return possible;
+
+  }else if(system == "macOS"){
+
+  }else {
+    cout << "Invalid system type : "<< system << endl;
+    
+    return possible;
+  }
+
+  return possible;
+}
 
 
 int doJob(shell_commons::CMDS cmd,  vector<string> args, int& flag, int& returnvalue,string remainder){
@@ -73,21 +112,21 @@ int doJob(shell_commons::CMDS cmd,  vector<string> args, int& flag, int& returnv
       return 0;
     }else if(cmd == shell_commons::CMDS::ECHO){
       cout << remainder <<endl;
-      // for(string key : args){
-      //   cout << key;
-      // }
-      // cout << endl;
+     
       return 0;
     }else if(cmd == shell_commons::CMDS::TYPE){
       string res = shell_commons::trim(remainder);
       if(commands_and_types_map.count(res)){
         if(commands_and_types_map[res] == shell_commons::COMMANDTYPES::BUILTIN){
           cout << res<< " is a shell builtin"<<endl;
-        }else{
-          cout << res << " is not a shell builtin"<<endl;
         }
       }else{
-        cout << res <<": not found"<<endl;
+        string possible = search_path_type(res, returnvalue);
+        if(returnvalue == 1){
+            cout << res << " is " << possible << endl;
+          }else{
+            cout << res << ": not found"<<endl;
+          }
       }
     }
     else{
@@ -98,12 +137,16 @@ int doJob(shell_commons::CMDS cmd,  vector<string> args, int& flag, int& returnv
 }
 
 int main() {
+
+
+
   // Flush after every std::cout / std:cerr
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
   
   int exitstatuscode = 0;
   int exitcalled = false;
+  int functionreturncode = 0;
   int nillflag = 99;
 
   string command;
@@ -128,7 +171,7 @@ int main() {
     }else if(cmd == "echo"){
       doJob(shell_commons::CMDS::ECHO, tokens, nillflag, exitstatuscode,remainder);
     }else if (cmd == "type"){
-      doJob(shell_commons::CMDS::TYPE, tokens, nillflag, exitstatuscode,remainder);
+      doJob(shell_commons::CMDS::TYPE, tokens, nillflag, functionreturncode,remainder);
     }
     else{
       cout << cmd <<":"<<" command not found" <<endl;
