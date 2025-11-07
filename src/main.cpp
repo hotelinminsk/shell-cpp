@@ -1,5 +1,7 @@
 #include "../lib/commons/commons.hpp"
 using namespace std;
+static std::vector<std::string> builtins = {"type", "echo", "exit"};
+
 
 string getFirstToken(const string& s, const char key,string& remainder){
   if(s.size() < 1) return " ";
@@ -46,144 +48,113 @@ vector<string> tokenizeString(const string& s, const char key){
   return tokens;
 }
 
+bool isBuiltin(const string& key){
+  bool isfound = 0;
 
-
-unordered_map<string, shell_commons::COMMANDTYPES> commands_and_types_map = {{"exit", shell_commons::COMMANDTYPES::BUILTIN}, {"echo", shell_commons::COMMANDTYPES::BUILTIN}, {"type", shell_commons::COMMANDTYPES::BUILTIN}};
-
-
-bool isCommand_exists(string token){
-
-  if(commands_and_types_map.count(token) > 0){
-    return true;
+  for(const string& builtin :  builtins){
+    if(key == builtin){
+      isfound = true;break;
+    }
   }
 
-  return false;
 
+  return isfound;
 }
 
 
 
+std::string findExecutable(const std::string& name) {
+    std::string path = getenv("PATH");
+    char delimiter = (shell_commons::getSystemName() == "Windows") ? ';' : ':';
+    std::vector<std::string> dirs = tokenizeString(path, delimiter);
 
-string search_path_type(const string& execname, int& returncode){
-  string system =  shell_commons::getSystemName();
-  returncode = 0;
-  string path = getenv("PATH");
-  vector<string> tokenizedPaths;
-  string possible = "";
-  if(system == "Windows"){
-    tokenizedPaths = tokenizeString(path,';');
-    returncode = 0;
-    for(const string& dirpath : tokenizedPaths){
-      possible = dirpath + "/" + execname;
-      if(access(possible.c_str(), X_OK) == 0){
-        returncode = 1;
-        break;
-      }
-    }
-    return possible;
-  }else if(system == "Linux"){
-    tokenizedPaths = tokenizeString(path,':');
-    for(const string& dirpath : tokenizedPaths){
-        possible = dirpath + "/" + execname;
-        if(access(possible.c_str(), X_OK) == 0){
-          //it can be executable
-          returncode = 1;
-          break;
+    for (const auto& dir : dirs) {
+        std::string candidate = dir + "/" + name;
+        if (access(candidate.c_str(), X_OK) == 0) {
+            return candidate;
         }
     }
-    return possible;
+    return "";
+}
 
-  }else if(system == "macOS"){
+bool execProgram(int argc, vector<string>& args){
+ if (args.empty()) return false;
 
-  }else {
-    cout << "Invalid system type : "<< system << endl;
-    
-    return possible;
-  }
+    std::string path = findExecutable(args[0]);
+    if (path.empty()) {
+        std::cerr << args[0] << ": command not found" << std::endl;
+        return false;
+    }
 
-  return possible;
+  
+    std::vector<char*> argv;
+    for (auto& a : args) argv.push_back(const_cast<char*>(a.c_str()));
+    argv.push_back(nullptr);
+
+
+  pid_t pid = fork();
+  if(pid == 0){
+    execv(path.c_str(), argv.data());
+    perror("Execv failed.");
+    exit(1);
+  }else { int status; waitpid(pid, &status, 0); }
+return true;
 }
 
 
-int doJob(shell_commons::CMDS cmd,  vector<string> args, int& flag, int& returnvalue,string remainder){
-    if(cmd == shell_commons::CMDS::EXIT){
-      flag = true;
-      returnvalue = stoi(args[0]);
-      return 0;
-    }else if(cmd == shell_commons::CMDS::ECHO){
-      cout << remainder <<endl;
-     
-      return 0;
-    }else if(cmd == shell_commons::CMDS::TYPE){
-      string res = shell_commons::trim(remainder);
-      if(commands_and_types_map.count(res)){
-        if(commands_and_types_map[res] == shell_commons::COMMANDTYPES::BUILTIN){
-          cout << res<< " is a shell builtin"<<endl;
-        }
-      }else{
-        string possible = search_path_type(res, returnvalue);
-        if(returnvalue == 1){
-            cout << res << " is " << possible << endl;
-          }else{
-            cout << res << ": not found"<<endl;
-          }
-      }
-    }
-    else{
-      return -1;
-    }  
+int doJob(const std::string& cmd, std::vector<std::string> args,
+          int& flag, int& returnvalue, std::string remainder) {
 
+    if (cmd == "exit") {
+        flag = true;
+        returnvalue = std::stoi(args[0]);
+        return 0;
+    }
+
+    if (cmd == "echo") {
+        std::cout << remainder << std::endl;
+        return 0;
+    }
+
+    if (cmd == "type") {
+        std::string res = shell_commons::trim(remainder);
+        if (isBuiltin(res))
+            std::cout << res << " is a shell builtin" << std::endl;
+        else {
+            std::string found = findExecutable(res);
+            if (!found.empty())
+                std::cout << res << " is " << found << std::endl;
+            else
+                std::cout << res << ": not found" << std::endl;
+        }
+        return 0;
+    }
+
+    // Buraya geldiysen, builtin değil
+    args.insert(args.begin(), cmd);
+    execProgram(args.size(),args);
     return 0;
 }
 
 int main() {
+    std::cout << std::unitbuf;
+    std::cerr << std::unitbuf;
 
+    int exitstatus = 0, exitcalled = false;
+    std::string command;
 
+    while (!exitcalled) {
+        std::cout << "$ ";
+        getline(std::cin, command);
+        if (command.empty()) continue;
 
-  // Flush after every std::cout / std:cerr
-  std::cout << std::unitbuf;
-  std::cerr << std::unitbuf;
-  
-  int exitstatuscode = 0;
-  int exitcalled = false;
-  int functionreturncode = 0;
-  int nillflag = 99;
+        std::vector<std::string> tokens = tokenizeString(command, ' ');
+        std::string cmd = tokens.front();
+        tokens.erase(tokens.begin());
 
-  string command;
-  while(!exitcalled){
-  std::cout<<"$ ";
-  getline(cin, command);
-  
-  vector<string> tokens = tokenizeString(command, ' ');
-  string remainder = "";
-
-  string cmd = getFirstToken(command,' ', remainder);
-  // string cmd = tokens[0];
-
-  tokens.erase(tokens.begin());
-
-  bool isOkay = false;
-
-  if(isCommand_exists(cmd)){
-
-    if(cmd == "exit"){
-      doJob(shell_commons::CMDS::EXIT,tokens, exitcalled, exitstatuscode,remainder);
-    }else if(cmd == "echo"){
-      doJob(shell_commons::CMDS::ECHO, tokens, nillflag, exitstatuscode,remainder);
-    }else if (cmd == "type"){
-      doJob(shell_commons::CMDS::TYPE, tokens, nillflag, functionreturncode,remainder);
+        std::string remainder = command.substr(cmd.size());
+        doJob(cmd, tokens, exitcalled, exitstatus, remainder);
     }
-    else{
-      cout << cmd <<":"<<" command not found" <<endl;
-    }
-  }else{
-    cout << cmd <<":"<<" command not found" <<endl;
-  }
-  
-  command.clear();
-}
 
-  return exitstatuscode;
-
-  
+    return exitstatus;
 }
