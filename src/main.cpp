@@ -5,43 +5,33 @@ using namespace std;
 static std::vector<std::string> builtins = {"type", "echo", "exit"};
 
 
-string getFirstToken(const string& s, const char key,string& remainder){
-  if(s.size() < 1) return " ";
-  string temp, firsttoken;
-  bool isfirst = true;
-  for(char x : s){
-    if(isfirst){
-      if(x == key){
-        firsttoken = temp;
-        temp.clear();
-        isfirst = false;
-      }else{
-        temp += x;
-      }
-    }else{
-      remainder += x;
-    }
-  }
-
-  if(firsttoken.size() < 1 && temp.size() > 1){
-    firsttoken = temp;
-  }
-
-  
-  return firsttoken;
-}
 
 vector<string> tokenizeString(const string& s, const char key){
   if(s.size() < 1) return {};
   string temp; 
   vector<string> tokens;
+  bool isStringOpened = false;
   for(char x : s){
-    if(x == key){
-      tokens.push_back(temp);
-      temp.clear();
-    }else{
-      temp += x;
+    if(x == '\"'){
+      
+      isStringOpened = !isStringOpened;
+      continue;
     }
+
+    if(isStringOpened){
+      
+      temp += x;
+      
+    }else{
+      if(x == key){
+        tokens.push_back(temp);
+        temp.clear();
+      }
+      else{
+        temp += x;
+      }
+    }
+    
   }
   if(temp.size() > 0){
     tokens.push_back(temp);
@@ -67,6 +57,10 @@ bool isBuiltin(const string& key){
 
 std::string findExecutable(const std::string& name) {
     std::string path = getenv("PATH");
+    if(name.find('/') != string::npos){
+      return name;
+    }
+    
     char delimiter = (shell_commons::getSystemName() == "Windows") ? ';' : ':';
     std::vector<std::string> dirs = tokenizeString(path, delimiter);
 
@@ -114,7 +108,8 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     }
 
     if (cmd == "echo") {
-        std::cout << remainder << std::endl;
+        std::string res = shell_commons::trim(remainder);
+        std::cout << res << std::endl;
         return 0;
     }
 
