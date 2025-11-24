@@ -2,8 +2,9 @@
 #include <sys/wait.h>
 #include "../lib/commons/commons.hpp"
 using namespace std;
-static std::vector<std::string> builtins = {"type", "echo", "exit", "pwd"};
+static std::vector<std::string> builtins = {"cd","type", "echo", "exit", "pwd"};
 
+static string current_working_dir = "";
 
 
 vector<string> tokenizeString(const string& s, const char key){
@@ -97,6 +98,37 @@ bool execProgram(int argc, vector<string>& args){
 return true;
 }
 
+int command_CD(const string& argument){
+  if(argument.empty()){
+    current_working_dir = "~";
+    return 0;
+  }
+
+  bool isRelative = true;
+
+  if(argument[0] == '/'){
+    isRelative = false;
+  }
+
+  if(isRelative){
+    return 0;
+  }else{
+    if(shell_commons::directoryExists(argument)){
+      current_working_dir = argument;
+      return 0;
+    }else{
+      cout << "cd: "<<argument<<": No such file or directory"<<endl;
+      return 0;
+    }
+  }
+
+
+}
+
+void command_PWD(){
+  cout << current_working_dir << endl;
+}
+
 
 int doJob(const std::string& cmd, std::vector<std::string> args,
           int& flag, int& returnvalue, std::string remainder) {
@@ -140,12 +172,13 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     }
 
     if(cmd == "pwd"){
-      char cwd[1024];
-      if (getcwd(cwd, sizeof(cwd)) != nullptr) {
-        std::cout << cwd << std::endl;
-      } else {
-        perror("getcwd() error");
-      }
+      command_PWD();
+      return 0;
+    }
+
+    if(cmd == "cd"){
+      // An absolute path starts with / and specifies a location from the root of the filesystem.
+      returnvalue = command_CD(remainder);
       return 0;
     }
 
@@ -155,7 +188,19 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     return 0;
 }
 
+void init(){
+  char cwd[1024];
+  if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+    current_working_dir = cwd;
+  } else {
+    perror("getcwd() error");
+    exit(1);
+  }
+}
+
+
 int main() {
+    init();
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
 
