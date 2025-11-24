@@ -103,7 +103,19 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
 
     if (cmd == "exit") {
         flag = true;
-        returnvalue = std::stoi(args[0]);
+        if(!args.empty()){
+          try
+          {
+            returnvalue = std::stoi(args[0]);
+          }
+          catch(const std::exception& e)
+          {
+            std::cerr << e.what() << '\n';
+          }
+          
+        }else{
+          returnvalue = 0;
+        }
         return 0;
     }
 
@@ -147,7 +159,7 @@ int main() {
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
 
-    int exitstatus = 0, exitcalled = false;
+    int exitstatus = 0, exitcalled = 0;
     std::string command;
   
 
