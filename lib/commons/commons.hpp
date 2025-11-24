@@ -18,6 +18,8 @@ std::string trim(const std::string& s);
 
 std::string getSystemName();
 
+bool directoryExists(const std::string&);
+
 
 enum class COMMANDTYPES {
   BUILTIN,
@@ -29,6 +31,8 @@ enum class CMDS {
   EXIT = 999,
   ECHO,
   TYPE,
+  PWD,
+  CD
 };
 
 
