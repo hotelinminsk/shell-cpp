@@ -2,7 +2,7 @@
 #include <sys/wait.h>
 #include "../lib/commons/commons.hpp"
 using namespace std;
-static std::vector<std::string> builtins = {"type", "echo", "exit"};
+static std::vector<std::string> builtins = {"type", "echo", "exit", "pwd"};
 
 
 
@@ -127,6 +127,16 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
         return 0;
     }
 
+    if(cmd == "pwd"){
+      char cwd[1024];
+      if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+        std::cout << cwd << std::endl;
+      } else {
+        perror("getcwd() error");
+      }
+      return 0;
+    }
+
     // Buraya geldiysen, builtin değil
     args.insert(args.begin(), cmd);
     execProgram(args.size(),args);
@@ -139,6 +149,7 @@ int main() {
 
     int exitstatus = 0, exitcalled = false;
     std::string command;
+  
 
     while (!exitcalled) {
         std::cout << "$ ";
