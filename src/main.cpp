@@ -21,15 +21,17 @@ vector<string> tokenizeString(const string& s, const char key){
   for(char x : s){
 
     if(escape_mode){
-      if(isStringOpened){
-        if(x == '\"'){
-          temp += '\"';
-        }else if(x == '\\' ){
-          temp += '\\';
-        }
-      }else{
-        temp += x;
-      }
+      temp += x;
+      
+      // if(isStringOpened){
+      //   if(x == '\"'){
+      //     temp += '\"';
+      //   }else if(x == '\\' ){
+      //     temp += '\\';
+      //   }
+      // }else{
+      //   temp += x;
+      // }
       escape_mode = false;
       continue;
     }
@@ -114,6 +116,7 @@ std::string findExecutable(const std::string& name) {
 
 bool execProgram(int argc, vector<string>& args){
  if (args.empty()) return false;
+
 
 
     std::string path = findExecutable(args[0]);
