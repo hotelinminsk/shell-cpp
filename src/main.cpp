@@ -15,21 +15,31 @@ vector<string> tokenizeString(const string& s, const char key){
   string temp; 
   vector<string> tokens;
   bool isStringOpened = false;
+  bool in_single_quotes = false;
   for(char x : s){
-    if(x == '\"'){
+    if(x == '\"' && !in_single_quotes){
       
       isStringOpened = !isStringOpened;
       continue;
     }
 
-    if(isStringOpened){
+    if(x == '\'' && !isStringOpened){
+      in_single_quotes = !in_single_quotes;
+      continue;
+    }
+    
+    if(isStringOpened && !in_single_quotes || !isStringOpened && in_single_quotes){
       
       temp += x;
       
-    }else{
+    }else if(!isStringOpened && !in_single_quotes){
       if(x == key){
-        tokens.push_back(temp);
-        temp.clear();
+        if(!temp.empty()){
+          tokens.push_back(temp);
+          temp.clear();
+        }else{
+          continue;
+        }
       }
       else{
         temp += x;
@@ -79,6 +89,7 @@ std::string findExecutable(const std::string& name) {
 
 bool execProgram(int argc, vector<string>& args){
  if (args.empty()) return false;
+
 
     std::string path = findExecutable(args[0]);
     if (path.empty()) {
@@ -256,6 +267,8 @@ void init_cwd(){
 }
 
 
+
+
 int main() {
     init_cwd();
     std::cout << std::unitbuf;
@@ -281,6 +294,8 @@ int main() {
           remainder += tokens[i];
           if(i + 1 < tokens.size()) remainder += " ";
         }
+        // cout << remainder<< endl;
+
 
         doJob(cmd, tokens, exitcalled, exitstatus, remainder);
     }
