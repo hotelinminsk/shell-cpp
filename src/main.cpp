@@ -26,7 +26,9 @@ vector<string> tokenizeString(const string& s, const char key){
         if(x == '\"'){
           temp += '\"';
         }else if(x == '\\' ){
-        temp += '\\';
+          temp += '\\';
+        }else{
+          temp += x;
         }
       
       }else{
