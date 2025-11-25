@@ -157,7 +157,7 @@ int command_CD(const string& argument){
     return 0;
   }else{
     if(argument == "~"){
-      chdir("~");
+      chdir(getenv("HOME"));
       init_cwd();
     }
     else if(shell_commons::directoryExists(argument)){
