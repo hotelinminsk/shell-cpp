@@ -156,7 +156,11 @@ int command_CD(const string& argument){
     }
     return 0;
   }else{
-    if(shell_commons::directoryExists(argument)){
+    if(argument == "~"){
+      chdir("~");
+      init_cwd();
+    }
+    else if(shell_commons::directoryExists(argument)){
       try{
         chdir(argument.c_str());
         current_working_dir = argument;
