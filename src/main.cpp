@@ -110,9 +110,11 @@ int command_CD(const string& argument){
     return 0;
   }
 
+  
+
   bool isRelative = true;
 
-  if(argument[0] == '/'){
+  if(argument[0] == '/' || argument[0] != '~'){
     isRelative = false;
   }
 
@@ -139,7 +141,12 @@ int command_CD(const string& argument){
 
         }else if(step == "."){
           continue;
-        }else{
+        }else if(step == "~"){
+          const char* home = getenv("HOME");
+          chdir(home);
+          init_cwd();
+        }
+        else{
           const string temp = current_working_dir + "/" + step;
 
           if(shell_commons::directoryExists(temp)){
@@ -156,11 +163,7 @@ int command_CD(const string& argument){
     }
     return 0;
   }else{
-    if(argument == "~"){
-      chdir(getenv("HOME"));
-      init_cwd();
-    }
-    else if(shell_commons::directoryExists(argument)){
+    if(shell_commons::directoryExists(argument)){
       try{
         chdir(argument.c_str());
         current_working_dir = argument;
