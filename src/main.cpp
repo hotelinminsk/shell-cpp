@@ -21,17 +21,17 @@ vector<string> tokenizeString(const string& s, const char key){
   for(char x : s){
 
     if(escape_mode){
-      temp += x;
-
-      //  if(isStringOpened){
-      //    if(x == '\"'){
-      //    temp += '\"';
-      //    }else if(x == '\\' ){
-      //      temp += '\\';
-      //    }
-      // }else{
-      //    temp += x;
-      // }
+      // temp += x;
+      if(isStringOpened){
+        if(x == '\"'){
+          temp += '\"';
+        }else if(x == '\\' ){
+        temp += '\\';
+        }
+      
+      }else{
+          temp += x;
+      }
       escape_mode = false;
       continue;
     }
@@ -47,7 +47,13 @@ vector<string> tokenizeString(const string& s, const char key){
     }
     
     if(isStringOpened && !in_single_quotes || !isStringOpened && in_single_quotes){
-      temp += x;
+      if(isStringOpened && x=='\\'){
+        escape_mode = true;
+        continue;
+      }else {
+        temp += x;
+
+      }
       
     }else if(!isStringOpened && !in_single_quotes){
       if(x == '\\'){
