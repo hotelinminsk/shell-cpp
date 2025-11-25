@@ -1,11 +1,14 @@
 #include <unistd.h>
 #include <sys/wait.h>
+#include <cstring>
 #include "../lib/commons/commons.hpp"
 using namespace std;
 static std::vector<std::string> builtins = {"cd","type", "echo", "exit", "pwd"};
 
 static string current_working_dir = "";
 
+//SIGNATURES
+void init_cwd();
 
 vector<string> tokenizeString(const string& s, const char key){
   if(s.size() < 1) return {};
@@ -100,7 +103,10 @@ return true;
 
 int command_CD(const string& argument){
   if(argument.empty()){
-    current_working_dir = "~";
+    
+    const char* home = getenv("HOME");
+    current_working_dir = home;
+    chdir(home);
     return 0;
   }
 
@@ -111,10 +117,53 @@ int command_CD(const string& argument){
   }
 
   if(isRelative){
+    vector<std::string> tokens = tokenizeString(argument, '/');
+    while(!tokens.empty()){
+      //cd atmaya devam etmen lazım
+      const string step = tokens.front(); // get the first
+      tokens.erase(tokens.begin());
+
+      if(!step.empty()){
+        //change the directory.
+        if(step == ".."){
+          if(current_working_dir == getenv("HOME")){
+            continue;
+          }
+          try{
+            chdir("..");
+            init_cwd(); // not really 
+          }catch(exception ex){
+            perror(ex.what());
+            exit(1);
+          }
+
+        }else if(step == "."){
+          continue;
+        }else{
+          const string temp = current_working_dir + "/" + step;
+
+          if(shell_commons::directoryExists(temp)){
+            try{
+              chdir(step.c_str());
+              init_cwd(); 
+            }catch(exception ex){
+              perror(ex.what());
+              exit(1);
+            }
+          }
+        }
+      }
+    }
     return 0;
   }else{
     if(shell_commons::directoryExists(argument)){
-      current_working_dir = argument;
+      try{
+        chdir(argument.c_str());
+        current_working_dir = argument;
+      }catch(...){
+        perror("Chdir error in command_CD");
+        exit(1);
+      }
       return 0;
     }else{
       cout << "cd: "<<argument<<": No such file or directory"<<endl;
@@ -126,6 +175,7 @@ int command_CD(const string& argument){
 }
 
 void command_PWD(){
+  init_cwd();
   cout << current_working_dir << endl;
 }
 
@@ -188,7 +238,7 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     return 0;
 }
 
-void init(){
+void init_cwd(){
   char cwd[1024];
   if (getcwd(cwd, sizeof(cwd)) != nullptr) {
     current_working_dir = cwd;
@@ -200,7 +250,7 @@ void init(){
 
 
 int main() {
-    init();
+    init_cwd();
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
 
