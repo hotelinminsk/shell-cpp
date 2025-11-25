@@ -31,6 +31,7 @@ vector<string> tokenizeString(const string& s, const char key){
           temp += '\\';
         }
         else{
+          temp += "\\";
           temp += x;
         }
       
