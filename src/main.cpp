@@ -126,7 +126,7 @@ std::string findExecutable(const std::string& name) {
     return "";
 }
 
-bool execProgram(int argc, vector<string>& args, bool hasRedir, const string& redirfile, const int redirfd){
+bool execProgram(int argc, vector<string>& args, bool hasRedir, const string& redirfile, const int redirfd, const shell_commons::REDIRECTTYPE RTYPE){
  if (args.empty()) return false;
 
 
@@ -145,7 +145,14 @@ bool execProgram(int argc, vector<string>& args, bool hasRedir, const string& re
   pid_t pid = fork();
   if(pid == 0){
     if(hasRedir){
-      int fd = open(redirfile.c_str(),O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      int flags = O_WRONLY | O_CREAT;
+      if(RTYPE == shell_commons::REDIRECTTYPE::APPEND){
+        flags |= O_APPEND;
+      }else{
+        flags |= O_TRUNC;
+      }
+
+      int fd = open(redirfile.c_str(),flags, 0644);
       if(fd < 0) {
         perror("open error");
         exit(1);
@@ -293,33 +300,53 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     bool has_redir = false;
     int16_t redir_fd = 1;
     string redir_filename;
-    
+    shell_commons::REDIRECTTYPE RTYPE = shell_commons::REDIRECTTYPE::NONE;
+
     bool expect_filename = false;
     for(auto arg : args){
       if(expect_filename) {
         redir_filename = arg;
         has_redir = true;
+        expect_filename = false;
         continue;
       }else{
-        auto pos = arg.find('>');
+        bool is_append = false;
+        auto pos_append = arg.find(">>");
+        auto pos_over = arg.find(">");
+        size_t pos = string::npos;
+
+        if(pos_append != string::npos){
+          is_append = true;
+          RTYPE = shell_commons::REDIRECTTYPE::APPEND;
+          pos = pos_append;
+        }else if(pos_over != string::npos){
+          RTYPE = shell_commons::REDIRECTTYPE::OVERWRITE;
+          pos = pos_over;
+        }
+
         if(pos == std::string::npos){
           clean_args.push_back(arg);
           continue;
         }
-        string left = arg.substr(0, pos);
-        string right = arg.substr(pos + 1);
+        string left, right;
+        if(is_append){
+          left = arg.substr(0, pos);
+          right = arg.substr(pos+2);
+        }else{
+          left = arg.substr(0,pos);
+          right = arg.substr(pos+1);
+        }
 
         string real_left = left;
 
         if(!left.empty()){
           if(left.back() == '1'){
             redir_fd = 1;
+            real_left.pop_back();
           }else if(left.back() == '2'){
             redir_fd = 2;
-          }else{
-            redir_fd = 3;
+            real_left.pop_back();
           }
-          real_left.pop_back();
         }else{
           real_left = left;
         }
@@ -332,6 +359,7 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
 
         if(!right.empty()){
           redir_filename = right;
+          has_redir = true;
         }else{
           expect_filename = true;
         }
@@ -364,7 +392,14 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
       int old_stdout = dup(STDOUT_FILENO);
       string res = shell_commons::trim(remainder);
         if(has_redir){
-          int fd = open(redir_filename.c_str(),O_WRONLY | O_CREAT | O_TRUNC, 0644);
+          
+          int flags = O_WRONLY | O_CREAT;
+          if(RTYPE == shell_commons::REDIRECTTYPE::APPEND){
+            flags |= O_APPEND;
+          }else{
+            flags |= O_TRUNC;
+          }
+          int fd = open(redir_filename.c_str(),flags, 0644);
           if(fd < 1){
             perror("Open error on echo.");
             exit(1);
@@ -417,7 +452,7 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     clean_args.insert(clean_args.begin(), cmd);
     // args.insert(args.begin(), cmd);
     // execProgram(args.size(),args);
-    execProgram(clean_args.size(), clean_args,has_redir, redir_filename,redir_fd);
+    execProgram(clean_args.size(), clean_args,has_redir, redir_filename,redir_fd,RTYPE);
     return 0;
 }
 
