@@ -2,6 +2,7 @@
 #include <sys/wait.h>
 #include <cstring>
 #include "../lib/commons/commons.hpp"
+#include <fcntl.h>
 using namespace std;
 static std::vector<std::string> builtins = {"cd","type", "echo", "exit", "pwd"};
 
@@ -12,13 +13,18 @@ void init_cwd();
 
 vector<string> tokenizeString(const string& s, const char key){
   if(s.size() < 1) return {};
-  string temp; 
+  string temp;
   vector<string> tokens;
   bool isStringOpened = false;
   bool in_single_quotes = false;
   bool escape_mode = false;
+  char input_redir_symbol = '>';
 
   for(char x : s){
+
+    if(!isStringOpened && !in_single_quotes && !escape_mode){
+
+    }
 
     if(escape_mode){
       // temp += x;
@@ -34,7 +40,7 @@ vector<string> tokenizeString(const string& s, const char key){
           temp += "\\";
           temp += x;
         }
-      
+
       }else{
           temp += x;
       }
@@ -51,7 +57,7 @@ vector<string> tokenizeString(const string& s, const char key){
       in_single_quotes = !in_single_quotes;
       continue;
     }
-    
+
     if(isStringOpened && !in_single_quotes || !isStringOpened && in_single_quotes){
       if(isStringOpened && x=='\\'){
         escape_mode = true;
@@ -60,7 +66,7 @@ vector<string> tokenizeString(const string& s, const char key){
         temp += x;
 
       }
-      
+
     }else if(!isStringOpened && !in_single_quotes){
       if(x == '\\'){
         escape_mode = true;
@@ -78,7 +84,7 @@ vector<string> tokenizeString(const string& s, const char key){
         temp += x;
       }
     }
-    
+
   }
   if(temp.size() > 0){
     tokens.push_back(temp);
@@ -107,7 +113,7 @@ std::string findExecutable(const std::string& name) {
     if(name.find('/') != string::npos){
       return name;
     }
-    
+
     char delimiter = (shell_commons::getSystemName() == "Windows") ? ';' : ':';
     std::vector<std::string> dirs = tokenizeString(path, delimiter);
 
@@ -120,7 +126,7 @@ std::string findExecutable(const std::string& name) {
     return "";
 }
 
-bool execProgram(int argc, vector<string>& args){
+bool execProgram(int argc, vector<string>& args, bool hasRedir, const string& redirfile){
  if (args.empty()) return false;
 
 
@@ -131,7 +137,7 @@ bool execProgram(int argc, vector<string>& args){
         return false;
     }
 
-  
+
     std::vector<char*> argv;
     for (auto& a : args) argv.push_back(const_cast<char*>(a.c_str()));
     argv.push_back(nullptr);
@@ -139,6 +145,16 @@ bool execProgram(int argc, vector<string>& args){
 
   pid_t pid = fork();
   if(pid == 0){
+    if(hasRedir){
+      int fd = open(redirfile.c_str(),O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      if(fd < 0) {
+        perror("open error");
+        exit(1);
+      }
+
+      dup2(fd, STDOUT_FILENO);
+      close(fd);
+    }
     execv(path.c_str(), argv.data());
     perror("Execv failed.");
     exit(1);
@@ -148,14 +164,14 @@ return true;
 
 int command_CD(const string& argument){
   if(argument.empty()){
-    
+
     const char* home = getenv("HOME");
     current_working_dir = home;
     chdir(home);
     return 0;
   }
 
-  
+
 
   bool isRelative = true;
 
@@ -178,7 +194,7 @@ int command_CD(const string& argument){
           }
           try{
             chdir("..");
-            init_cwd(); // not really 
+            init_cwd(); // not really
           }catch(exception ex){
             perror(ex.what());
             exit(1);
@@ -197,7 +213,7 @@ int command_CD(const string& argument){
           if(shell_commons::directoryExists(temp)){
             try{
               chdir(step.c_str());
-              init_cwd(); 
+              init_cwd();
             }catch(exception ex){
               perror(ex.what());
               exit(1);
@@ -232,9 +248,95 @@ void command_PWD(){
 }
 
 
+
+
+
+
+
+bool hasSubstring(const string& mainString, const string& subs){
+  if(subs.length() > mainString.length()){
+    throw invalid_argument("Has substring function cant take substring longer than mainstring.");
+  }
+
+  if(mainString.empty() || subs.empty()){
+    throw invalid_argument("Has substring function  cant take substring or mainstring which is empty.");
+  }
+
+  int stepcount = subs.length();
+  bool is_exists = false;
+  int stepper = 0;
+  for(int i = 0; i<mainString.length(); i++){
+    stepper = i;
+    int count = 0;
+    while(count < stepcount){
+      if(mainString[stepper++] == subs[count++]){
+        is_exists = true;
+      }else {
+        is_exists = false;
+        break;
+      }
+    }
+    if(!(count < stepcount) && is_exists){
+      break;
+    }
+  }
+
+
+  return is_exists;
+
+}
+
+
 int doJob(const std::string& cmd, std::vector<std::string> args,
           int& flag, int& returnvalue, std::string remainder) {
 
+    vector<string> clean_args;
+    bool has_redir = false;
+    int16_t redir_fd = 1;
+    string redir_filename;
+    
+    bool expect_filename = false;
+    for(auto arg : args){
+      if(expect_filename) {
+        redir_filename = arg;
+        has_redir = true;
+        continue;
+      }else{
+        auto pos = arg.find('>');
+        if(pos == std::string::npos){
+          clean_args.push_back(arg);
+          continue;
+        }
+        string left = arg.substr(0, pos);
+        string right = arg.substr(pos + 1);
+
+        string real_left = left;
+
+        if(!left.empty() && left.back() == '1'){
+          redir_fd = 1;
+          real_left.pop_back();
+        }else{
+          real_left = left;
+        }
+
+        if(!real_left.empty()){
+          clean_args.push_back(real_left);
+        }
+
+        string real_right = right;
+
+        if(!right.empty()){
+          redir_filename = right;
+        }else{
+          expect_filename = true;
+        }
+      }
+      
+    }
+
+
+
+    
     if (cmd == "exit") {
         flag = true;
         if(!args.empty()){
@@ -246,7 +348,7 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
           {
             std::cerr << e.what() << '\n';
           }
-          
+
         }else{
           returnvalue = 0;
         }
@@ -285,8 +387,10 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     }
 
     // Buraya geldiysen, builtin değil
-    args.insert(args.begin(), cmd);
-    execProgram(args.size(),args);
+    clean_args.insert(clean_args.begin(), cmd);
+    // args.insert(args.begin(), cmd);
+    // execProgram(args.size(),args);
+    execProgram(clean_args.size(), clean_args,has_redir, redir_filename);
     return 0;
 }
 
@@ -310,7 +414,7 @@ int main() {
 
     int exitstatus = 0, exitcalled = 0;
     std::string command;
-  
+
 
     while (!exitcalled) {
         std::cout << "$ ";
