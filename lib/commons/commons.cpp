@@ -29,4 +29,18 @@ bool directoryExists(const std::string& path){
     return (info.st_mode & S_IFDIR) != 0;
 }
 
+
+
+
+Result<RangeValue, FindError> findSubstring(const std::string& MAIN, const std::string& lookedFor)
+{
+    auto position = MAIN.find(lookedFor);
+    if(position == std::string::npos){
+        return Result<RangeValue, FindError>::Err(FindError::NillSubs); 
+    }
+
+    return Result<RangeValue, FindError>::Ok(std::make_pair(position, position + lookedFor.size() -1));
+}
+
+
 } // namespace shell_commons

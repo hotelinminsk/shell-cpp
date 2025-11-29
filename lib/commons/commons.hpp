@@ -35,7 +35,41 @@ enum class CMDS {
   CD
 };
 
+enum class FindError {
+  NillSubs
+};
 
+template <typename T, typename E>
+struct Result {
+  bool ok;
+  T value;
+  E error;
+
+  static Result Ok(const T& v) {
+    Result r;
+    r.ok = true;
+    r.value = v;
+    return r;
+  }
+
+  static Result Err(E e) {
+    Result r;
+    r.ok = false;
+    r.error = e;
+    return r;
+  }
+};
+
+using RangeValue = std::pair<size_t, size_t>;
+
+Result<RangeValue,FindError>findSubstring(const std::string&, const std::string&);
+
+
+enum class REDIRECTTYPE {
+  OVERWRITE,
+  APPEND,
+  NONE
+};
 
 }
 
