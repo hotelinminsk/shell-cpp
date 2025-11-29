@@ -356,8 +356,30 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     }
 
     if (cmd == "echo") {
-        std::string res = shell_commons::trim(remainder);
-        std::cout << res << std::endl;
+      int old_stdout = dup(STDOUT_FILENO);
+      string res = shell_commons::trim(remainder);
+        if(has_redir){
+          int fd = open(redir_filename.c_str(),O_WRONLY | O_CREAT | O_TRUNC, 0644);
+          if(fd < 1){
+            perror("Open error on echo.");
+            exit(1);
+          }
+          dup2(fd, STDOUT_FILENO);
+          close(fd);
+          while(!clean_args.empty()){
+            cout << clean_args.back();
+            clean_args.pop_back();
+          }
+          cout << endl;
+        }else{
+          std::cout << res << std::endl;
+        }
+        
+
+      
+        fflush(stdout);
+        dup2(old_stdout, STDOUT_FILENO);      // 4) stdout'u eski haline getir (terminal)
+        close(old_stdout);  
         return 0;
     }
 
