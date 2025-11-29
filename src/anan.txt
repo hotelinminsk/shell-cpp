@@ -1,0 +1,1 @@
+ls: cannot access 'ananın': No such file or directory

@@ -126,9 +126,8 @@ std::string findExecutable(const std::string& name) {
     return "";
 }
 
-bool execProgram(int argc, vector<string>& args, bool hasRedir, const string& redirfile){
+bool execProgram(int argc, vector<string>& args, bool hasRedir, const string& redirfile, const int redirfd){
  if (args.empty()) return false;
-
 
 
     std::string path = findExecutable(args[0]);
@@ -152,7 +151,7 @@ bool execProgram(int argc, vector<string>& args, bool hasRedir, const string& re
         exit(1);
       }
 
-      dup2(fd, STDOUT_FILENO);
+      dup2(fd, redirfd);
       close(fd);
     }
     execv(path.c_str(), argv.data());
@@ -312,8 +311,14 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
 
         string real_left = left;
 
-        if(!left.empty() && left.back() == '1'){
-          redir_fd = 1;
+        if(!left.empty()){
+          if(left.back() == '1'){
+            redir_fd = 1;
+          }else if(left.back() == '2'){
+            redir_fd = 2;
+          }else{
+            redir_fd = 3;
+          }
           real_left.pop_back();
         }else{
           real_left = left;
@@ -364,7 +369,7 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
             perror("Open error on echo.");
             exit(1);
           }
-          dup2(fd, STDOUT_FILENO);
+          dup2(fd, redir_fd);
           close(fd);
           while(!clean_args.empty()){
             cout << clean_args.back();
@@ -412,7 +417,7 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     clean_args.insert(clean_args.begin(), cmd);
     // args.insert(args.begin(), cmd);
     // execProgram(args.size(),args);
-    execProgram(clean_args.size(), clean_args,has_redir, redir_filename);
+    execProgram(clean_args.size(), clean_args,has_redir, redir_filename,redir_fd);
     return 0;
 }
 
