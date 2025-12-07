@@ -344,6 +344,76 @@ bool hasSubstring(const string& mainString, const string& subs){
 }
 
 
+void execWithPipe(int leftc,vector<string>leftofpipe,int rightc, vector<string>rightofpipe){
+  //pipe 0 read, pipe1 write
+  string leftcommand = leftofpipe.at(0);
+  string rightcommand = rightofpipe.at(0);
+  string pathleft, pathright;
+  if((pathleft = findExecutable(leftcommand)).empty()){
+    cerr << leftcommand << ": command not found"<< endl;
+    return;
+  }
+  if((pathright = findExecutable(rightcommand)).empty()){
+    cerr << rightcommand << ": command not found"<< endl;
+    return;
+  }
+
+  int pipefd[2];
+  if(pipe(pipefd) == -1){
+    perror("pipe open error.");
+    exit(1);
+  }
+
+  vector<char*> argvleft, argvright;
+  for(auto& a : leftofpipe){
+    argvleft.push_back(const_cast<char*>(a.c_str()));
+  }
+
+  for(auto& a : rightofpipe){
+    argvright.push_back(const_cast<char*>(a.c_str()));
+  }
+
+  argvleft.push_back(nullptr);
+  argvright.push_back(nullptr);
+
+  pid_t pid1 = fork();
+
+  if(pid1 == 0){
+    //child1
+
+    dup2(pipefd[1], STDOUT_FILENO);
+
+    close(pipefd[0]);
+    close(pipefd[1]);
+
+    execvp(argvleft[0],argvleft.data());
+
+    _exit(1);
+  }
+
+  pid_t pid2 = fork();
+
+  if(pid2 == 0){
+    dup2(pipefd[0], STDIN_FILENO);
+
+    close(pipefd[0]);
+    close(pipefd[1]);
+
+    execvp(argvright[0], argvright.data());
+    _exit(1);
+  }
+
+
+  close(pipefd[0]);
+  close(pipefd[1]);
+
+  int status;
+
+  waitpid(pid1, &status, 0);
+  waitpid(pid2, &status, 0);
+
+}
+
 int doJob(const std::string& cmd, std::vector<std::string> args,
           int& flag, int& returnvalue, std::string remainder) {
 
@@ -352,6 +422,18 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
     int16_t redir_fd = 1;
     string redir_filename;
     shell_commons::REDIRECTTYPE RTYPE = shell_commons::REDIRECTTYPE::NONE;
+
+    bool has_pipe = false;
+
+    // int pipe_pos = -1;
+    // for (int i = 0; i< args.size(); ++i){
+    //   if(args[i] == "|"){
+    //     has_pipe = true;
+    //     pipe_pos = i;
+    //     break;
+    //   }
+  
+
 
     bool expect_filename = false;
     for(auto arg : args){
@@ -501,9 +583,26 @@ int doJob(const std::string& cmd, std::vector<std::string> args,
 
     // Buraya geldiysen, builtin değil
     clean_args.insert(clean_args.begin(), cmd);
+
+    int pipe_position = -1;
+    for(int i = 0; i<clean_args.size(); i++){
+      if(clean_args[i] == "|"){
+        pipe_position = i;
+        break;
+      }
+    }
+
+
+
     // args.insert(args.begin(), cmd);
     // execProgram(args.size(),args);
-    execProgram(clean_args.size(), clean_args,has_redir, redir_filename,redir_fd,RTYPE);
+    if(pipe_position != -1){
+      vector<string> leftofpipe(clean_args.begin(), clean_args.begin() + pipe_position);
+      vector<string> rightofpipe(clean_args.begin() + pipe_position + 1, clean_args.end());
+      execWithPipe(leftofpipe.size(), leftofpipe, rightofpipe.size(), rightofpipe);
+    }else{
+      execProgram(clean_args.size(), clean_args,has_redir, redir_filename,redir_fd,RTYPE);
+    }
     return 0;
 }
 
