@@ -631,17 +631,17 @@ static void build_completion_matches(const char* text){
 
   // execs
   
-  for(int i = 0 ; i < path_executables.size(); i++){
-    const auto& cmd = path_executables[i];
-    if(cmd.compare(0,len,text) == 0){
-      completion_matches.push_back(full_paths_of_execs[i]);
-    }
-  }
-  // for(const auto& cmd: path_executables){
-  //   if(cmd.compare(0, len, text) == 0){
-  //     completion_matches.push_back(cmd);
+  // for(int i = 0 ; i < path_executables.size(); i++){
+  //   const auto& cmd = path_executables[i];
+  //   if(cmd.compare(0,len,text) == 0){
+  //     completion_matches.push_back(full_paths_of_execs[i]);
   //   }
   // }
+   for(const auto& cmd: path_executables){
+     if(cmd.compare(0, len, text) == 0){
+       completion_matches.push_back(cmd);
+    }
+  }
 }
 
 
