@@ -3,13 +3,20 @@
 #include <cstring>
 #include "../lib/commons/commons.hpp"
 #include <fcntl.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 using namespace std;
+
 static std::vector<std::string> builtins = {"cd","type", "echo", "exit", "pwd"};
+
 
 static string current_working_dir = "";
 
 //SIGNATURES
 void init_cwd();
+
+char* command_generator(const char* text, int state);
+char** my_completion(const char* text, int start, int end);
 
 vector<string> tokenizeString(const string& s, const char key){
   if(s.size() < 1) return {};
@@ -470,17 +477,49 @@ void init_cwd(){
 
 
 int main() {
+    rl_bind_key('\t', rl_complete);
+    rl_attempted_completion_function = my_completion;
+    rl_completion_append_character = ' ';
+    
+    // while(true){
+    //   char* line = readline("mysh> ");
+
+    //   if(line == nullptr){
+    //     break;
+    //   }
+
+    //   if(*line){
+    //     add_history(line);
+    //   }
+
+    //   write(1, line, strlen(line));
+
+    //   break;
+
+    //   free(line);
+
+    // }
+    // return 0; 
     init_cwd();
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
 
     int exitstatus = 0, exitcalled = 0;
     std::string command;
-
+    char* line;
 
     while (!exitcalled) {
-        std::cout << "$ ";
-        getline(std::cin, command);
+
+        line = readline("$ ");
+        if (line == nullptr) break;; // EOF (Ctrl+D)
+        if (*line) {
+            add_history(line);
+        }
+        // std::cout << "$ ";
+        // getline(std::cin, command);
+        // if (command.empty()) continue;
+        command = std::string(line);
+        free(line);        
         if (command.empty()) continue;
 
         std::vector<std::string> tokens = tokenizeString(command, ' ');
@@ -501,4 +540,43 @@ int main() {
     }
 
     return exitstatus;
+}
+
+
+
+
+char* command_generator(const char* text, int state){
+  static int list_index;
+  static int len;
+
+  if (state == 0) {
+    list_index = 0;
+    len = strlen(text);
+  }
+
+  const char* name;
+
+  while( list_index < builtins.size()){
+    const string& cmd = builtins[list_index++];
+    name = cmd.c_str(); 
+    // cout << "Name : "<< name<<endl;
+    if(strncmp(name, text, len) == 0){
+      // cout << "Compare : "<< name << " and : "<< text << ": "<< strncmp(name, text, len); 
+      return strdup(name);
+    }
+
+  }
+
+  return nullptr;
+}
+
+char** my_completion(const char* text, int start, int end){
+  if(start != 0){
+    return nullptr;
+  }
+
+  rl_attempted_completion_over = 1;
+
+
+  return rl_completion_matches(text, command_generator);
 }

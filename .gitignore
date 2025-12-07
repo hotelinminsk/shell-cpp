@@ -839,6 +839,11 @@ ServiceFabricBackup/
 # Microsoft Fakes
 FakesAssemblies/
 
+.test-my
+
+
+test-my/
+
 # GhostDoc plugin setting file
 *.GhostDoc.xml
 
