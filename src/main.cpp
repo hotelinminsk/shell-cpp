@@ -3,11 +3,17 @@
 #include <cstring>
 #include "../lib/commons/commons.hpp"
 #include <fcntl.h>
+#include <unordered_set>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <dirent.h>
 using namespace std;
 
 static std::vector<std::string> builtins = {"cd","type", "echo", "exit", "pwd"};
+
+static vector<string> path_executables;
+static vector<string> full_paths_of_execs;
+static vector<string> completion_matches;
 
 
 static string current_working_dir = "";
@@ -15,6 +21,8 @@ static string current_working_dir = "";
 //SIGNATURES
 void init_cwd();
 
+static void build_completion_matches(const char* text);
+void build_path_exec_cache();
 char* command_generator(const char* text, int state);
 char** my_completion(const char* text, int start, int end);
 
@@ -113,7 +121,43 @@ bool isBuiltin(const string& key){
   return isfound;
 }
 
+char** findExecutable(){
+  static size_t len = 0;
+  const char* PATH = getenv("PATH");
+  
+  char** executables = nullptr;
 
+  char delimiter = (shell_commons::getSystemName() == "Windows") ? ';' : ':';
+  
+  vector<string> dirs = tokenizeString(PATH, delimiter);
+  DIR* directorystream;
+  struct dirent* direntry;
+  int count = 0;
+  for(auto dir : dirs){
+    if((directorystream = opendir(dir.c_str())) == NULL){
+      cout << "Could not open directory : "<< dir << endl;
+      exit(-1);
+    }
+
+    while((direntry = readdir(directorystream)) != NULL){
+      if(direntry->d_name == "." || direntry->d_name==".."){
+        continue;
+      }
+      string candidate = dir + "/"+direntry->d_name;
+      if(access(candidate.c_str(), X_OK) == 0 ){
+        // we are sure that this is an executable.
+        // the executable is : direntry->d_name
+        // execs path is : dir/direntry->d_name
+        executables = (char**)realloc(executables, (count + 2)* sizeof(char*));
+        
+        executables[count++] = strdup(direntry->d_name);
+        executables[count] = nullptr;
+      }
+    }
+  }
+
+  return executables;
+}
 
 std::string findExecutable(const std::string& name) {
     std::string path = getenv("PATH");
@@ -477,6 +521,7 @@ void init_cwd(){
 
 
 int main() {
+    build_path_exec_cache();
     rl_bind_key('\t', rl_complete);
     rl_attempted_completion_function = my_completion;
     rl_completion_append_character = ' ';
@@ -546,28 +591,16 @@ int main() {
 
 
 char* command_generator(const char* text, int state){
-  static int list_index;
-  static int len;
-
-  if (state == 0) {
-    list_index = 0;
-    len = strlen(text);
+  if (state == 0){
+    build_completion_matches(text);
   }
 
-  const char* name;
+  if(static_cast<size_t>(state) >= completion_matches.size()) return nullptr;
 
-  while( list_index < builtins.size()){
-    const string& cmd = builtins[list_index++];
-    name = cmd.c_str(); 
-    // cout << "Name : "<< name<<endl;
-    if(strncmp(name, text, len) == 0){
-      // cout << "Compare : "<< name << " and : "<< text << ": "<< strncmp(name, text, len); 
-      return strdup(name);
-    }
 
-  }
+  const string& candidate = completion_matches[state];
 
-  return nullptr;
+  return strdup(candidate.c_str());
 }
 
 char** my_completion(const char* text, int start, int end){
@@ -577,6 +610,90 @@ char** my_completion(const char* text, int start, int end){
 
   rl_attempted_completion_over = 1;
 
-
   return rl_completion_matches(text, command_generator);
+}
+
+
+
+static void build_completion_matches(const char* text){
+  completion_matches.clear();
+
+  size_t len = strlen(text);
+
+  // first builtins 
+
+  for(const auto& b: builtins){
+    if(b.compare(0,len, text) == 0){
+      completion_matches.push_back(b);
+    }
+  }
+
+
+  // execs
+  
+  for(int i = 0 ; i < path_executables.size(); i++){
+    const auto& cmd = path_executables[i];
+    if(cmd.compare(0,len,text) == 0){
+      completion_matches.push_back(full_paths_of_execs[i]);
+    }
+  }
+  // for(const auto& cmd: path_executables){
+  //   if(cmd.compare(0, len, text) == 0){
+  //     completion_matches.push_back(cmd);
+  //   }
+  // }
+}
+
+
+void build_path_exec_cache(){
+  if(!path_executables.empty()) return;
+
+  const char* PATH = getenv("PATH");
+  if(!PATH) return;
+
+
+  const char delimiter = (shell_commons::getSystemName() == "Windows") ? ';' : ':';
+
+  vector<string> dirs;
+  dirs = tokenizeString(PATH, delimiter);
+  
+
+  unordered_set<string> seen;
+
+
+  for (const auto& dir : dirs){
+    DIR* d = opendir(dir.c_str());
+    if(!d) continue;
+    struct dirent* ent;
+
+    while((ent = readdir(d)) != nullptr){
+
+      const char* name = ent->d_name;
+
+      if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0){
+        continue;
+      }
+
+      string fullpath = dir + "/" + name;
+
+
+      if(access(fullpath.c_str(), X_OK) != 0){
+        continue;
+      }
+
+      string cmd_name = name;
+
+      if(seen.insert(cmd_name).second){
+        path_executables.push_back(cmd_name);
+        full_paths_of_execs.push_back(fullpath);
+      }
+    }
+
+    closedir(d);
+  }
+
+
+
+  
+
 }
