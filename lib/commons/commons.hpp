@@ -26,6 +26,13 @@ enum class COMMANDTYPES {
   NOT_BUILTIN
 };
 
+struct RedirInfo{
+  bool stdout_redir;
+  bool stderr_redir;
+  REDIRECTTYPE type;
+
+  std::string filename;
+};
 
 enum class CMDS {
   EXIT = 999,
